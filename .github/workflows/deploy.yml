@@ -1,0 +1,50 @@
+name: Deploy Slack AOAI Bot to Azure Functions
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Sync app settings so the app always has config
+      - name: Sync app settings
+        uses: Azure/appservice-settings@v1
+        with:
+          app-name: ${{ secrets.FUNCTION_APP_NAME }}
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+          app-settings-json: |
+            [
+              { "name": "SLACK_BOT_TOKEN",       "value": "${{ secrets.SLACK_BOT_TOKEN }}" },
+              { "name": "SLACK_SIGNING_SECRET",  "value": "${{ secrets.SLACK_SIGNING_SECRET }}" },
+              { "name": "GH_TOKEN",              "value": "${{ secrets.GH_TOKEN }}" },
+              { "name": "GH_REPO",               "value": "${{ secrets.GH_REPO }}" },
+              { "name": "AOAI_ENDPOINT",         "value": "${{ secrets.AOAI_ENDPOINT }}" },
+              { "name": "AOAI_API_KEY",          "value": "${{ secrets.AOAI_API_KEY }}" },
+              { "name": "AOAI_DEPLOYMENT",       "value": "${{ secrets.AOAI_DEPLOYMENT }}" },
+              { "name": "OPENAI_API_VERSION",    "value": "${{ secrets.OPENAI_API_VERSION }}" }
+            ]
+
+      - name: Deploy Functions to Azure
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ secrets.FUNCTION_APP_NAME }}
+          package: '.'
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+          scm-do-build-during-deployment: true
